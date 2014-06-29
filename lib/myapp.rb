@@ -15,6 +15,7 @@ env = ENV["RACK_ENV"] || "development"
 DataMapper.setup(:default, ENV['DATABASE_URL'] || "postgres://localhost/mbk_#{env}")
  
 require './lib/user'
+require './lib/transaction'
 
 DataMapper.finalize
 DataMapper.auto_upgrade!
@@ -45,8 +46,12 @@ $authorization = Signet::OAuth2::Client.new(
     :scope => PLUS_LOGIN_SCOPE)
 $client = Google::APIClient.new(application_name: APPLICATION_NAME)
 
+get '/test' do
+  erb :test
+end
 # Connect the user with Google+ and store the credentials.
 post '/connect' do
+
   # Get the token from the session if available or exchange the authorization
   # code for a token.
   if !session[:token]
@@ -69,7 +74,6 @@ post '/connect' do
       # "sub" represents the ID token subscriber which in our case
       # is the user ID. This sample does not use the user ID.
       gplus_id = body['sub']
-
       # Serialize and store the token in the user's session.
       token_pair = TokenPair.new
       token_pair.update_token!($client.authorization)
@@ -92,7 +96,6 @@ get '/people' do
   if !session[:token]
     halt 401, 'User not connected.'
   end
-
   # Authorize the client and construct a Google+ service.
   $client.authorization.update_token!(session[:token].to_hash)
   plus = $client.discovered_api('plus', 'v1')
@@ -132,19 +135,17 @@ end
 # Fill out the templated variables in index.html.
 get '/' do
   # Create a string for verification
-  if !session[:state]
-
-    state = (0...13).map{('a'..'z').to_a[rand(26)]}.join
-    session[:state] = state
-
+  if !session[:token]
+    if !session[:state]
+      state = (0...13).map{('a'..'z').to_a[rand(26)]}.join
+      session[:state] = state
+    end
+    @state = session[:state]
+    erb :sign_in
+  else
+    erb :homepage
   end
-
-  @state = session[:state]
-  erb :homepage
-  # response = File.read('index.html').sub(/[{]{2}\s*STATE\s*[}]{2}/, state)
-  # response = response.sub(/[{]{2}\s*CLIENT_ID\s*[}]{2}/, $credentials.client_id)
-  # response = response.sub(/[{]{2}\s*APPLICATION_NAME\s*[}]{2}/,
-  #     APPLICATION_NAME)
+  
 end
 
 # Serializes and deserializes the token.
@@ -171,7 +172,10 @@ class TokenPair
   end
 end
 
-  
+# def current_user    
+#     @current_user ||= User.get(session[:user_id]) if session[:user_id]
+# end
+
   # start the server if ruby file executed directly
   run! if app_file == $0
 end
