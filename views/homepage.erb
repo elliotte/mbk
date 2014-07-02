@@ -4,6 +4,7 @@
   
   <script type="text/javascript">
   (function() {
+
     var po = document.createElement('script');
     po.type = 'text/javascript'; po.async = true;
     po.src = 'https://plus.google.com/js/client:plusone.js';
@@ -27,10 +28,9 @@
         data-cookiepolicy="single_host_origin">
     </button>
   </div>
+  <a href="/test">Testfortransactions</a>
 
-  
-  <a href="/test">Test</a>
-
+  <a href="/sign_out">SignOut</a>
   <div id="authOps" style="display:none">
     <h2>User is now signed in to the app using Google+</h2>
     <p>If the user chooses to disconnect, the app must delete all stored
@@ -76,6 +76,7 @@ var helper = (function() {
         helper.connectServer();
         // After we load the Google+ API, render the profile data from Google+.
         gapi.client.load('plus','v1',this.renderProfile);
+        gapi.client.load('drive','v2',this.renderFiles);
       } else if (authResult['error']) {
         // There was an error, which means the user is not signed in.
         // As an example, you can troubleshoot by writing to the console:
@@ -167,6 +168,7 @@ var helper = (function() {
         processData: false
       });
     },
+
     /**
      * Displays visible People retrieved from server.
      *

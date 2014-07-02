@@ -6,7 +6,6 @@ class User
   property :email,     String
   has n, :transactions
   property :uid,     String
-  property :provider,     String
 
   def credits
     transactions.all(conditions: { :type => 'Credit' })

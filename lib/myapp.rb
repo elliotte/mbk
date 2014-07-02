@@ -28,12 +28,8 @@ set :partial_template_engine, :erb
 
 use Rack::Session::Cookie, :expire_after => 86400 # 1 day
 
-# See the README.md for getting the OAuth 2.0 client ID and
-# client secret.
-
-# Configuration that you probably don't have to change
 APPLICATION_NAME = 'Monea BK'
-PLUS_LOGIN_SCOPE = 'https://www.googleapis.com/auth/plus.login'
+PLUS_LOGIN_SCOPE = 'https://www.googleapis.com/auth/plus.login https://www.googleapis.com/auth/drive'
 
 # Build the global client
 $credentials = Google::APIClient::ClientSecrets.load
@@ -46,38 +42,58 @@ $authorization = Signet::OAuth2::Client.new(
     :scope => PLUS_LOGIN_SCOPE)
 $client = Google::APIClient.new(application_name: APPLICATION_NAME)
 
+get '/' do
+
+  if !session[:token]
+   
+     if !session[:state]
+      state = (0...13).map{('a'..'z').to_a[rand(26)]}.join
+      session[:state] = state
+      @state = session[:state]
+      erb :homepage
+     else
+      @state = session[:state]
+      erb :homepage
+     end
+
+   else
+    erb :homepage2
+  end
+
+end
+
 get '/test' do
+  @transactions = User.get(session[:mbk_id]).transactions
   erb :test
 end
+
 # Connect the user with Google+ and store the credentials.
 post '/connect' do
 
-  # Get the token from the session if available or exchange the authorization
-  # code for a token.
   if !session[:token]
 
-    # Make sure that the state we set on the client matches the state sent
-    # in the request to protect against request forgery.
     if session[:state] == params[:state]
-      # Upgrade the code into a token object.
       $authorization.code = request.body.read
       $authorization.fetch_access_token!
       $client.authorization = $authorization
 
       id_token = $client.authorization.id_token
       encoded_json_body = id_token.split('.')[1]
-      # Base64 must be a multiple of 4 characters long, trailing with '='
+      
       encoded_json_body += (['='] * (encoded_json_body.length % 4)).join('')
       json_body = Base64.decode64(encoded_json_body)
       body = JSON.parse(json_body)
-      # You can read the Google user ID in the ID token.
-      # "sub" represents the ID token subscriber which in our case
-      # is the user ID. This sample does not use the user ID.
-      gplus_id = body['sub']
+
+      gplus_id = body['sub']  
+      monea_user = User.first_or_create(uid: gplus_id)
+      mbk_id = monea_user.id
+
       # Serialize and store the token in the user's session.
       token_pair = TokenPair.new
       token_pair.update_token!($client.authorization)
       session[:token] = token_pair
+      session[:mbk_id] = mbk_id
+      session[:gplus_id] = gplus_id
     else
       halt 401, 'The client state does not match the server state.'
     end
@@ -88,8 +104,6 @@ post '/connect' do
   end
 end
 
-
-##
 # An Example API call, list the people the user shared with this app.
 get '/people' do
   # Check for stored credentials in the current user's session.
@@ -106,11 +120,13 @@ get '/people' do
       :userId => 'me').body
   content_type :json
   response
-
 end
 
+get '/sign_out' do
+    session.delete(:token)
+    redirect to('/')
+end
 
-##
 # Disconnect the user by revoking the stored token and removing session objects.
 post '/disconnect' do
   halt 401, 'No stored credentials' unless session[:token]
@@ -118,7 +134,6 @@ post '/disconnect' do
   # Use either the refresh or access token to revoke if present.
   token = session[:token].to_hash[:refresh_token]
   token = session[:token].to_hash[:access_token] unless token
-
   # You could reset the state at this point, but as-is it will still stay unique
   # to this user and we're avoiding resetting the client state.
   # session.delete(:state)
@@ -130,22 +145,6 @@ post '/disconnect' do
   request = Net::HTTP.new(uri.host, uri.port)
   request.use_ssl = true
   status request.get(uri.request_uri).code
-end
-
-# Fill out the templated variables in index.html.
-get '/' do
-  # Create a string for verification
-  if !session[:token]
-    if !session[:state]
-      state = (0...13).map{('a'..'z').to_a[rand(26)]}.join
-      session[:state] = state
-    end
-    @state = session[:state]
-    erb :sign_in
-  else
-    erb :homepage
-  end
-  
 end
 
 # Serializes and deserializes the token.
