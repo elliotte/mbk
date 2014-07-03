@@ -1,0 +1,43 @@
+
+ <p>mbk_id: <%= session[:mbk_id] %></p>
+
+<p>gplus_id: <%= session[:gplus_id] %></p>
+
+<p>Token<%= session[:token].inspect %></p>
+
+<p>state<%= session[:state] %></p>
+
+<a href="/sign_out">SignOut</a>
+
+<h1 id="test"></h1>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js" ></script>
+
+<div id="gConnect">
+    <button class="g-signin"
+        data-scope="https://www.googleapis.com/auth/plus.login"
+        data-requestvisibleactions="http://schemas.google.com/AddActivity"
+        data-clientId="792513003123-ok9t5e2oqver2v15tr5v049ov6286bjc.apps.googleusercontent.com"
+        data-accesstype="offline"
+        data-callback="onSignInCallback"
+        data-theme="dark"
+        data-cookiepolicy="single_host_origin">
+    </button>
+  </div>
+
+
+  <script type="text/javascript">
+    (function() {
+
+    var po = document.createElement('script');
+    po.type = 'text/javascript'; po.async = true;
+    po.src = 'https://plus.google.com/js/client:plusone.js';
+    var s = document.getElementsByTagName('script')[0];
+    s.parentNode.insertBefore(po, s);
+    $('#test').html(s);
+  })();
+
+
+  </script>
+
+

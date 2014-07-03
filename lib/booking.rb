@@ -18,6 +18,14 @@ class Booking
 		@amounts.count
 	end
 
+	# def book_right_dr_and_cr type
+	# 	if type == "user_bank_payments"
+	# 		iterate_amounts_and_create_cashbook_payments
+	# 	else
+	# 		return
+	# 	end
+	# end
+
 	def pop_amount_from_booking_list
 		@amounts.pop
 	end

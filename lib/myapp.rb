@@ -10,6 +10,9 @@ require 'net/https'
 require 'uri'
 require 'data_mapper'
 
+require './lib/booking'
+require './lib/double_entry'
+
 env = ENV["RACK_ENV"] || "development"
 
 DataMapper.setup(:default, ENV['DATABASE_URL'] || "postgres://localhost/mbk_#{env}")
@@ -29,7 +32,7 @@ set :partial_template_engine, :erb
 use Rack::Session::Cookie, :expire_after => 86400 # 1 day
 
 APPLICATION_NAME = 'Monea BK'
-PLUS_LOGIN_SCOPE = 'https://www.googleapis.com/auth/plus.login https://www.googleapis.com/auth/drive'
+PLUS_LOGIN_SCOPE = 'https://www.googleapis.com/auth/plus.login'
 
 # Build the global client
 $credentials = Google::APIClient::ClientSecrets.load
@@ -42,30 +45,36 @@ $authorization = Signet::OAuth2::Client.new(
     :scope => PLUS_LOGIN_SCOPE)
 $client = Google::APIClient.new(application_name: APPLICATION_NAME)
 
+def user_id
+  session[:mbk_id]
+end
+
+get '/daybooks' do
+  @transactions = User.get(user_id).transactions
+  erb :daybooks
+end
+
+post '/daybooks' do
+  amounts = params["amounts"].delete_if { |a| a["value"] == "" }
+  booking = Booking.new(user_id, amounts, params["booking_type"] )
+  DoubleEntry.book_transactions(booking)
+  redirect to('/daybooks')
+end
+
 get '/' do
-
-  if !session[:token]
-   
-     if !session[:state]
-      state = (0...13).map{('a'..'z').to_a[rand(26)]}.join
-      session[:state] = state
-      @state = session[:state]
-      erb :homepage
-     else
-      @state = session[:state]
-      erb :homepage
-     end
-
-   else
-    erb :homepage2
+  if !session[:state]
+    state = (0...13).map{('a'..'z').to_a[rand(26)]}.join
+    session[:state] = state
   end
-
+  @state = session[:state]
+  erb :user_landing_page
 end
 
 get '/test' do
   @transactions = User.get(session[:mbk_id]).transactions
   erb :test
 end
+
 
 # Connect the user with Google+ and store the credentials.
 post '/connect' do
@@ -123,8 +132,16 @@ get '/people' do
 end
 
 get '/sign_out' do
-    session.delete(:token)
-    redirect to('/')
+  halt 401, 'No stored credentials' unless session[:token]
+
+  # Use either the refresh or access token to revoke if present.
+  token = session[:token].to_hash[:refresh_token]
+  token = session[:token].to_hash[:access_token] unless token
+  # You could reset the state at this point, but as-is it will still stay unique
+  # to this user and we're avoiding resetting the client state.
+  # session.delete(:state)
+  session.delete(:token)
+  redirect to('/')
 end
 
 # Disconnect the user by revoking the stored token and removing session objects.
@@ -146,6 +163,9 @@ post '/disconnect' do
   request.use_ssl = true
   status request.get(uri.request_uri).code
 end
+
+
+
 
 # Serializes and deserializes the token.
 class TokenPair
@@ -169,6 +189,9 @@ class TokenPair
       :expires_in => @expires_in,
       :issued_at => Time.at(@issued_at)}
   end
+
+
+
 end
 
 # def current_user    

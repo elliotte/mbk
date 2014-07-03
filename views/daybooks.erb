@@ -1,0 +1,29 @@
+
+<form action="/daybooks" method="post">
+  <input name="booking_type" type="hidden" value="user_bank_payments">
+	<% 5.times do %>
+  <div style="display:block;">
+      <li>
+        <input name="amounts[][value]" placeholder="value"></li>
+      <li>
+        <label>Tag</label>
+        <input name="amounts[][mitag]">
+      </li>
+      <li>
+        <label>Date</label>
+        <input name="amounts[][accdate]">
+        <!-- <input name="amounts[][type]" type="hidden" value="Debit"> -->
+      </li>
+    </div>
+    <% end %>
+  <input type="submit" value="Book bank payments">
+</form>
+
+<%=  @transactions.count %>
+<br>
+<%= session[:mbk_id] %>
+<br>
+<%= session[:gplus_id] %>
+
+<a href="/">Home</a>
+
